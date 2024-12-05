@@ -20,13 +20,12 @@ jobs:
 
     - name: Run Grammar Check
       run: |
-        find . -name "*.tex" -exec java -jar textidote.jar --check en --quiet {} \;
-      continue-on-error: true
+        find . -name "*.tex" -exec java -jar textidote.jar --check it --quiet {} \;
 
     - name: Annotate Grammar Errors
       if: failure()
       uses: marocchino/sticky-pull-request-comment@v2
       with:
         message: |
-          Grammar check found issues. Please review the report.
-          Run `java -jar textidote.jar --check en --quiet <your-file.tex>` locally for more details.
+          Il controllo grammaticale ha trovato problemi. Si prega di rivedere il report.
+          Esegui localmente `java -jar textidote.jar --check it --quiet <tuo-file.tex>` per maggiori dettagli.
