@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-  pull_request:
+  
 
 jobs:
   grammar-check:
@@ -20,12 +20,4 @@ jobs:
 
     - name: Run Grammar Check
       run: |
-        find . -name "*.tex" -exec java -jar textidote.jar --check it --quiet {} \;
-
-    - name: Annotate Grammar Errors
-      if: failure()
-      uses: marocchino/sticky-pull-request-comment@v2
-      with:
-        message: |
-          Il controllo grammaticale ha trovato problemi. Si prega di rivedere il report.
-          Esegui localmente `java -jar textidote.jar --check it --quiet <tuo-file.tex>` per maggiori dettagli.
+        find Texstuff/ -name "*.tex" -exec java -jar textidote.jar --check it --quiet {} \;
