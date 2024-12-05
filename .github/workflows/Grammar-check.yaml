@@ -21,4 +21,12 @@ jobs:
 
     - name: Run Grammar Check
       run: |
-        find . -name "*.tex" -exec java -jar textidote.jar --check it --quiet {} \;
+        find . -name "*.tex" -exec java -jar textidote.jar --check it --no-pdflatex --no-color --ignore latex {} \;
+
+    - name: Annotate Grammar Errors
+      if: failure()
+      uses: marocchino/sticky-pull-request-comment@v2
+      with:
+        message: |
+          ⚠️ Il controllo grammaticale ha trovato problemi. Correggi gli errori e riprova.
+          Puoi eseguire localmente `java -jar textidote.jar --check it --no-pdflatex --ignore latex <file.tex>` per dettagli.
