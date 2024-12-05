@@ -4,7 +4,8 @@ on:
   push:
     branches:
       - main
-  
+    paths:
+      - '**/*.tex'
 
 jobs:
   grammar-check:
@@ -20,4 +21,4 @@ jobs:
 
     - name: Run Grammar Check
       run: |
-        find Texstuff/ -name "*.tex" -exec java -jar textidote.jar --check it --quiet {} \;
+        find . -name "*.tex" -exec java -jar textidote.jar --check it --quiet {} \;
