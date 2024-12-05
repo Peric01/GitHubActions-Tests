@@ -1,6 +1,6 @@
-- name: TeXtidote Action
-  uses: ChiefGokhlayeh/textidote-action@v5.3.1
-  with:
+name: TeXtidote Action
+uses: ChiefGokhlayeh/textidote-action@v5.3.1
+with:
     # The root LaTeX file to be linted.
     root_file: 
     # Working directory to execute TeXtidote in.
