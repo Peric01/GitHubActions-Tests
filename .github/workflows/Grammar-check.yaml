@@ -22,9 +22,16 @@ jobs:
         sudo apt-get install -y aspell aspell-it aspell-en
 
     - name: Spell Check for LaTeX Files
+      id: spell-check
       run: |
-        # Create a temporary file for unrecognized words
+        # Create temporary files for storing errors
         TMP_FILE=$(mktemp)
+        UNRECOGNIZED_WORDS_FILE="unrecognized_words.txt"
+        ERRORS_IN_ENGLISH_FILE="errors_in_english.txt"
+        
+        # Initialize files
+        > $UNRECOGNIZED_WORDS_FILE
+        > $ERRORS_IN_ENGLISH_FILE
 
         # Process all .tex files in the specified folder
         for file in $(find Texstuff -name "*.tex"); do
@@ -35,17 +42,26 @@ jobs:
           aspell --lang=it list >> $TMP_FILE
         done
 
-        echo "Checking unrecognized words in English..."
-        # Check the unrecognized words against the English dictionary
+        # Save unrecognized words and check against the English dictionary
         if [ -s "$TMP_FILE" ]; then
-          echo "Unrecognized words found:"
-          sort -u "$TMP_FILE" | tee unrecognized_words.txt
-          # Run English spell check
-          sort -u "$TMP_FILE" | aspell --lang=en list | tee errors_in_english.txt
+          sort -u "$TMP_FILE" > $UNRECOGNIZED_WORDS_FILE
+          sort -u "$TMP_FILE" | aspell --lang=en list > $ERRORS_IN_ENGLISH_FILE
+        fi
+
+        # Export results for later steps
+        echo "unrecognized_words=$(cat $UNRECOGNIZED_WORDS_FILE)" >> $GITHUB_ENV
+        echo "errors_in_english=$(cat $ERRORS_IN_ENGLISH_FILE)" >> $GITHUB_ENV
+
+        # Fail if any errors were found
+        if [ -s "$UNRECOGNIZED_WORDS_FILE" ] || [ -s "$ERRORS_IN_ENGLISH_FILE" ]; then
+          echo "Errors found in Italian or English. Failing job."
+          exit 1
+        else
+          echo "No errors found."
         fi
 
     - name: Create Comment on Pull Request
-      if: ${{ github.event_name == 'pull_request' && (steps.spell-check.outputs.errors || steps.spell-check.outputs.errors_in_english) }}
+      if: ${{ github.event_name == 'pull_request' }}
       uses: actions/github-script@v6
       with:
         script: |
@@ -57,12 +73,16 @@ jobs:
 
           if (fs.existsSync(unrecognizedWordsPath)) {
             const unrecognizedWords = fs.readFileSync(unrecognizedWordsPath, 'utf8');
-            commentBody += '### Errors in Italian/Unrecognized words:\n```\n' + unrecognizedWords + '\n```\n';
+            if (unrecognizedWords.trim().length > 0) {
+              commentBody += '### Errors in Italian/Unrecognized words:\n```\n' + unrecognizedWords + '\n```\n';
+            }
           }
 
           if (fs.existsSync(errorsInEnglishPath)) {
             const errorsInEnglish = fs.readFileSync(errorsInEnglishPath, 'utf8');
-            commentBody += '### Errors in English:\n```\n' + errorsInEnglish + '\n```\n';
+            if (errorsInEnglish.trim().length > 0) {
+              commentBody += '### Errors in English:\n```\n' + errorsInEnglish + '\n```\n';
+            }
           }
 
           if (commentBody) {
@@ -71,4 +91,6 @@ jobs:
               ...context.issue,
               body: commentBody
             });
+          } else {
+            console.log('No errors found; no comment will be posted.');
           }
