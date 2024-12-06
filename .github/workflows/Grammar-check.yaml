@@ -1,6 +1,9 @@
 name: Grammar Check for LaTeX
 
 on:
+  push:
+    paths:
+      - 'Texstuff/**/*.tex'
   pull_request:
     paths:
       - 'Texstuff/**/*.tex'
@@ -19,41 +22,53 @@ jobs:
         sudo apt-get install -y aspell aspell-it aspell-en
 
     - name: Spell Check for LaTeX Files
-      id: spell-check
       run: |
         # Create a temporary file for unrecognized words
         TMP_FILE=$(mktemp)
-        ERRORS=""
 
         # Process all .tex files in the specified folder
         for file in $(find Texstuff -name "*.tex"); do
           echo "Processing $file..."
-          
-          # Remove LaTeX commands and perform Italian spell check
-          UNRECOGNIZED=$(sed 's/\\[a-zA-Z]*//g' "$file" | aspell --lang=it list | sort -u)
 
-          # Collect errors
-          if [ -n "$UNRECOGNIZED" ]; then
-            ERRORS="$ERRORS\n### Errors in $file (Italian):\n\`\`\`\n$UNRECOGNIZED\n\`\`\`"
-          fi
+          # Remove LaTeX commands before running spell check
+          sed 's/\\[a-zA-Z]*//g' "$file" | \
+          aspell --lang=it list >> $TMP_FILE
         done
 
-        # Check words unrecognized in Italian against the English dictionary
-        if [ -n "$ERRORS" ]; then
-          echo -e "$ERRORS"
-          echo "::set-output name=errors::$ERRORS"
+        echo "Checking unrecognized words in English..."
+        # Check the unrecognized words against the English dictionary
+        if [ -s "$TMP_FILE" ]; then
+          echo "Unrecognized words found:"
+          sort -u "$TMP_FILE" | tee unrecognized_words.txt
+          # Run English spell check
+          sort -u "$TMP_FILE" | aspell --lang=en list | tee errors_in_english.txt
         fi
-      continue-on-error: true
 
-    - name: Comment on Pull Request
-      if: steps.spell-check.outputs.errors != ''
+    - name: Create Comment on Pull Request
+      if: ${{ github.event_name == 'pull_request' && (steps.spell-check.outputs.errors || steps.spell-check.outputs.errors_in_english) }}
       uses: actions/github-script@v6
       with:
         script: |
-          const errors = process.env.ERRORS;
-          const { context } = github;
-          github.rest.issues.createComment({
-            ...context.repo,
-            issue_number: context.issue.number,
-            body: `### Grammar Check Results\n${errors}\nPlease fix the errors above before merging.`
-          })
+          const fs = require('fs');
+          const unrecognizedWordsPath = 'unrecognized_words.txt';
+          const errorsInEnglishPath = 'errors_in_english.txt';
+          
+          let commentBody = '';
+
+          if (fs.existsSync(unrecognizedWordsPath)) {
+            const unrecognizedWords = fs.readFileSync(unrecognizedWordsPath, 'utf8');
+            commentBody += '### Errors in Italian/Unrecognized words:\n```\n' + unrecognizedWords + '\n```\n';
+          }
+
+          if (fs.existsSync(errorsInEnglishPath)) {
+            const errorsInEnglish = fs.readFileSync(errorsInEnglishPath, 'utf8');
+            commentBody += '### Errors in English:\n```\n' + errorsInEnglish + '\n```\n';
+          }
+
+          if (commentBody) {
+            commentBody = '## Grammar Check Results\n' + commentBody;
+            await github.rest.issues.createComment({
+              ...context.issue,
+              body: commentBody
+            });
+          }
