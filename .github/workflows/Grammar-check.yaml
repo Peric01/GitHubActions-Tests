@@ -51,28 +51,30 @@ jobs:
       if: ${{ github.event_name == 'pull_request' }}
       run: |
         # Check if errors exist and create a comment
-        if [[ -s unrecognized_words.txt || -s errors_in_english.txt ]]; then
-          echo "Errors found, creating a comment on the PR."
+        commentBody="## Grammar Check Results\n"
+        errorsFound=false
 
-          # Create the comment body with the errors found
-          commentBody="## Grammar Check Results\n"
+        if [ -s unrecognized_words.txt ]; then
+          commentBody+="### Errors in Italian/Unrecognized words:\n\`\`\`\n$(cat unrecognized_words.txt)\n\`\`\`\n"
+          errorsFound=true
+        fi
 
-          if [ -s unrecognized_words.txt ]; then
-            commentBody+="### Errors in Italian/Unrecognized words:\n\`\`\`\n$(cat unrecognized_words.txt)\n\`\`\`\n"
-          fi
+        if [ -s errors_in_english.txt ]; then
+          commentBody+="### Errors in English:\n\`\`\`\n$(cat errors_in_english.txt)\n\`\`\`\n"
+          errorsFound=true
+        fi
 
-          if [ -s errors_in_english.txt ]; then
-            commentBody+="### Errors in English:\n\`\`\`\n$(cat errors_in_english.txt)\n\`\`\`\n"
-          fi
-
-          # Post the comment using the GitHub API and token
+        if $errorsFound; then
+          echo "Creating comment on PR..."
           curl -X POST -H "Authorization: token ${{ secrets.GH_TOKEN }}" \
             -d "{\"body\":\"$commentBody\"}" \
             "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments"
+        else
+          echo "No errors found, no comment created."
         fi
 
     - name: Fail Pull Request if Errors Found
-      if: ${{ github.event_name == 'pull_request' && (steps.spellcheck.outputs.unrecognized_words > 0 || steps.spellcheck.outputs.errors_in_english > 0) }}
+      if: ${{ github.event_name == 'pull_request' && (steps.spellcheck.outputs.errors_in_english != '' || steps.spellcheck.outputs.unrecognized_words != '') }}
       run: |
         echo "Found errors in the pull request. Failing job."
         exit 1
