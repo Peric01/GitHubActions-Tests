@@ -1,32 +1,43 @@
-name: Spellcheck LaTeX
+name: Spell Check for LaTeX (Italian & English)
 
 on:
   push:
-    branches: [ main ]
+    paths:
+      - '**/*.tex'
   pull_request:
-    branches: [ main ]
-  workflow_dispatch:
+    paths:
+      - '**/*.tex'
 
 jobs:
-  spellcheck:
+  spell-check:
     runs-on: ubuntu-latest
+
     steps:
-      # Checkout the code from the repository
-      - name: Checkout repository
-        uses: actions/checkout@v3
+    - name: Checkout Repository
+      uses: actions/checkout@v3
 
-      # Install Python and dependencies
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: 3.9
+    - name: Install Aspell and Dictionaries
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y aspell aspell-it aspell-en
 
-      - name: Install PySpelling
-        run: |
-          python -m pip install --upgrade pip
-          pip install pyspelling
+    - name: Spell Check in Italian and English
+      run: |
+        # Create a temporary file for unrecognized words
+        TMP_FILE=$(mktemp)
 
-      # Run PySpelling with the configuration
-      - name: Run Spellcheck
-        run: |
-          pyspelling -c spellcheck.yml
+        # List all .tex files in the repository
+        for file in $(find . -name "*.tex"); do
+          echo "Checking $file in Italian..."
+          
+          # Perform Italian spell check and output unrecognized words
+          aspell --mode=tex --lang=it list < "$file" >> $TMP_FILE
+        done
+
+        echo "Checking unrecognized words in English..."
+        # Check the unrecognized words against the English dictionary
+        if [ -s "$TMP_FILE" ]; then
+          sort -u "$TMP_FILE" | aspell --lang=en list || exit 1
+        else
+          echo "No unrecognized words to check in English."
+        fi
