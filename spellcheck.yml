@@ -1,0 +1,12 @@
+matrix:
+  default:
+    filters:
+      - paths:
+          - "**/*.tex"
+    pipeline:
+      - pyspelling.filters.text.TextFilter:
+          encoding: "utf-8"
+          format: "latex"
+check:
+  matrix:
+    - default
