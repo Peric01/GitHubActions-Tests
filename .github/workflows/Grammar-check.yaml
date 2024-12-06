@@ -1,4 +1,4 @@
-name: Grammar Check for LaTeX
+name: Italian Grammar and Spell Check for LaTeX
 
 on:
   push:
@@ -12,22 +12,17 @@ on:
       - '**/*.tex'
 
 jobs:
-  grammar-check:
+  spell-check:
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
 
-    - name: Install LanguageTool
-      run: |
-        wget -q https://languagetool.org/download/LanguageTool-stable.zip
-        unzip -q LanguageTool-stable.zip -d languagetool
-
-    - name: Install Pandoc
+    - name: Install Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y pandoc
+        sudo apt-get install -y hunspell hunspell-it texlive-full pandoc
 
     - name: Preprocess LaTeX Files
       run: |
@@ -35,17 +30,25 @@ jobs:
         find . -name "*.tex" -exec sh -c \
         'pandoc -f latex -t plain "{}" -o "processed/$(basename "{}" .tex).txt"' \;
 
-    - name: Run Grammar Check with LanguageTool
+    - name: Run Spell Check
       run: |
+        mkdir -p reports
         for file in processed/*.txt; do
-          java -jar languagetool/languagetool-commandline.jar \
-          --language it "$file" || true
+          hunspell -d it_IT "$file" > "reports/$(basename "$file" .txt).report" || true
         done
+
+    - name: Display Errors
+      run: |
+        echo "Spell Check Reports:"
+        cat reports/*.report
 
     - name: Annotate Grammar Errors
       if: failure()
       uses: marocchino/sticky-pull-request-comment@v2
       with:
         message: |
-          ⚠️ Il controllo grammaticale con LanguageTool ha trovato problemi. Correggi gli errori e riprova.
-          Puoi eseguire localmente `pandoc -f latex -t plain <file.tex> | java -jar languagetool/languagetool-commandline.jar --language it` per dettagli.
+          ⚠️ Il controllo grammaticale/spell check ha trovato problemi nei file LaTeX:
+          Controlla i dettagli nei log.
+          Per eseguire localmente:
+          1. Usa `pandoc` per estrarre testo dai file `.tex`.
+          2. Controlla gli errori con `hunspell -d it_IT <file.txt>`.
