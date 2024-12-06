@@ -7,6 +7,8 @@ matrix:
       - pyspelling.filters.text.TextFilter:
           encoding: "utf-8"
           format: "latex"
+    dictionary:
+      - /usr/share/hunspell/it_IT.dic  # Per italiano (può variare a seconda dell'installazione)
 check:
   matrix:
     - default
