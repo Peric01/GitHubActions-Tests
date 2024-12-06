@@ -47,6 +47,15 @@ jobs:
           echo "No unrecognized words found."
         fi
 
+    - name: Show Debug Output for Errors
+      run: |
+        # Show the contents of the error files to check if they were generated correctly
+        echo "Unrecognized words (Italian errors):"
+        cat unrecognized_words.txt || echo "No errors found in Italian."
+        
+        echo "English errors:"
+        cat errors_in_english.txt || echo "No errors found in English."
+
     - name: Create Comment on Pull Request
       if: ${{ github.event_name == 'pull_request' }}
       run: |
@@ -68,7 +77,8 @@ jobs:
           echo "Creating comment on PR..."
           curl -X POST -H "Authorization: token ${{ secrets.GH_TOKEN }}" \
             -d "{\"body\":\"$commentBody\"}" \
-            "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments"
+            "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+            || echo "Failed to create comment on PR"
         else
           echo "No errors found, no comment created."
         fi
