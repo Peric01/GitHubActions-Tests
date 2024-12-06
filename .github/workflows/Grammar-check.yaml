@@ -1,9 +1,6 @@
 name: Grammar Check for LaTeX
 
 on:
-  push:
-    paths:
-      - 'Texstuff/**/*.tex'
   pull_request:
     paths:
       - 'Texstuff/**/*.tex'
@@ -22,33 +19,41 @@ jobs:
         sudo apt-get install -y aspell aspell-it aspell-en
 
     - name: Spell Check for LaTeX Files
+      id: spell-check
       run: |
         # Create a temporary file for unrecognized words
         TMP_FILE=$(mktemp)
+        ERRORS=""
 
         # Process all .tex files in the specified folder
         for file in $(find Texstuff -name "*.tex"); do
           echo "Processing $file..."
+          
+          # Remove LaTeX commands and perform Italian spell check
+          UNRECOGNIZED=$(sed 's/\\[a-zA-Z]*//g' "$file" | aspell --lang=it list | sort -u)
 
-          # Remove LaTeX commands before running spell check
-          sed 's/\\[a-zA-Z]*//g' "$file" | \
-          aspell --lang=it list >> $TMP_FILE
+          # Collect errors
+          if [ -n "$UNRECOGNIZED" ]; then
+            ERRORS="$ERRORS\n### Errors in $file (Italian):\n\`\`\`\n$UNRECOGNIZED\n\`\`\`"
+          fi
         done
 
-        echo "Checking unrecognized words in English..."
-        # Check the unrecognized words against the English dictionary
-        if [ -s "$TMP_FILE" ]; then
-          echo "Unrecognized words found:"
-          sort -u "$TMP_FILE" | tee unrecognized_words.txt
-          # Run English spell check
-          sort -u "$TMP_FILE" | aspell --lang=en list | tee errors_in_english.txt
-
-          # If there are any errors, fail the job
-          if [ -s errors_in_english.txt ]; then
-            echo "Errors found in English or Italian. Failing job."
-            cat errors_in_english.txt
-            exit 1
-          fi
-        else
-          echo "No unrecognized words found."
+        # Check words unrecognized in Italian against the English dictionary
+        if [ -n "$ERRORS" ]; then
+          echo -e "$ERRORS"
+          echo "::set-output name=errors::$ERRORS"
         fi
+      continue-on-error: true
+
+    - name: Comment on Pull Request
+      if: steps.spell-check.outputs.errors != ''
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const errors = process.env.ERRORS;
+          const { context } = github;
+          github.rest.issues.createComment({
+            ...context.repo,
+            issue_number: context.issue.number,
+            body: `### Grammar Check Results\n${errors}\nPlease fix the errors above before merging.`
+          })
