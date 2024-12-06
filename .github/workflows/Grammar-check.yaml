@@ -19,18 +19,20 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v3
 
-    - name: Install TeXtidote
+    - name: Install LanguageTool
       run: |
-        wget -q https://github.com/sylvainhalle/textidote/releases/latest/download/textidote.jar -O textidote.jar
+        wget -q https://languagetool.org/download/LanguageTool-stable.zip
+        unzip -q LanguageTool-stable.zip -d languagetool
 
-    - name: Run Grammar Check
+    - name: Run Grammar Check with LanguageTool
       run: |
-        find . -name "*.tex" -exec java -jar textidote.jar --check it --check-only --no-pdflatex --ignore latex {} \;
+        find . -name "*.tex" -exec languagetool/languagetool-commandline.jar \
+        --language it --disableCategories LT-tex {} \;
 
     - name: Annotate Grammar Errors
       if: failure()
       uses: marocchino/sticky-pull-request-comment@v2
       with:
         message: |
-          ⚠️ Il controllo grammaticale ha trovato problemi. Correggi gli errori e riprova.
-          Puoi eseguire localmente `java -jar textidote.jar --check it --no-pdflatex --ignore latex <file.tex>` per dettagli.
+          ⚠️ Il controllo grammaticale con LanguageTool ha trovato problemi. Correggi gli errori e riprova.
+          Puoi eseguire localmente `java -jar languagetool/languagetool-commandline.jar --language it <file.tex>` per dettagli.
