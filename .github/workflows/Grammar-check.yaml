@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - main
+      - feature/*
+    paths:
+      - '**/*.tex'
+  pull_request:
     paths:
       - '**/*.tex'
 
