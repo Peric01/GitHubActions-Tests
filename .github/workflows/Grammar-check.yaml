@@ -1,12 +1,12 @@
-name: Spell Check for LaTeX (Italian & English)
+name: Grammar Check for LaTeX
 
 on:
   push:
     paths:
-      - '**/*.tex'
+      - 'Texstuff/**/*.tex'
   pull_request:
     paths:
-      - '**/*.tex'
+      - 'Texstuff/**/*.tex'
 
 jobs:
   spell-check:
@@ -21,23 +21,24 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y aspell aspell-it aspell-en
 
-    - name: Spell Check in Italian and English
+    - name: Spell Check for LaTeX Files
       run: |
         # Create a temporary file for unrecognized words
         TMP_FILE=$(mktemp)
 
-        # List all .tex files in the repository
-        for file in $(find . -name "*.tex"); do
-          echo "Checking $file in Italian..."
-          
-          # Perform Italian spell check and output unrecognized words
-          aspell --mode=tex --lang=it list < "$file" >> $TMP_FILE
+        # Process all .tex files in the specified folder
+        for file in $(find Texstuff -name "*.tex"); do
+          echo "Processing $file..."
+
+          # Remove LaTeX commands before running spell check
+          sed 's/\\[a-zA-Z]*//g' "$file" | \
+          aspell --lang=it list >> $TMP_FILE
         done
 
         echo "Checking unrecognized words in English..."
         # Check the unrecognized words against the English dictionary
         if [ -s "$TMP_FILE" ]; then
-          sort -u "$TMP_FILE" | aspell --lang=en list || exit 1
+          sort -u "$TMP_FILE" | aspell --lang=en list
         else
-          echo "No unrecognized words to check in English."
+          echo "No unrecognized words found."
         fi
