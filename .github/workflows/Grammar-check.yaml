@@ -49,48 +49,39 @@ jobs:
         fi
 
         # Export results for later steps
-        echo "unrecognized_words=$(cat $UNRECOGNIZED_WORDS_FILE)" >> $GITHUB_ENV
-        echo "errors_in_english=$(cat $ERRORS_IN_ENGLISH_FILE)" >> $GITHUB_ENV
-
-        # Fail if any errors were found
-        if [ -s "$UNRECOGNIZED_WORDS_FILE" ] || [ -s "$ERRORS_IN_ENGLISH_FILE" ]; then
-          echo "Errors found in Italian or English. Failing job."
-          exit 1
-        else
-          echo "No errors found."
-        fi
+        echo "UNRECOGNIZED_WORDS=$(cat $UNRECOGNIZED_WORDS_FILE | wc -l)" >> $GITHUB_ENV
+        echo "ERRORS_IN_ENGLISH=$(cat $ERRORS_IN_ENGLISH_FILE | wc -l)" >> $GITHUB_ENV
 
     - name: Create Comment on Pull Request
-      if: ${{ github.event_name == 'pull_request' }}
+      if: ${{ github.event_name == 'pull_request' && (env.UNRECOGNIZED_WORDS > 0 || env.ERRORS_IN_ENGLISH > 0) }}
       uses: actions/github-script@v6
+      id: create-comment
       with:
         script: |
           const fs = require('fs');
           const unrecognizedWordsPath = 'unrecognized_words.txt';
           const errorsInEnglishPath = 'errors_in_english.txt';
           
-          let commentBody = '';
+          let commentBody = '## Grammar Check Results\n';
 
-          if (fs.existsSync(unrecognizedWordsPath)) {
-            const unrecognizedWords = fs.readFileSync(unrecognizedWordsPath, 'utf8');
-            if (unrecognizedWords.trim().length > 0) {
-              commentBody += '### Errors in Italian/Unrecognized words:\n```\n' + unrecognizedWords + '\n```\n';
-            }
+          if (fs.existsSync(unrecognizedWordsPath) && fs.readFileSync(unrecognizedWordsPath, 'utf8').trim()) {
+            commentBody += '### Errors in Italian/Unrecognized words:\n```\n' + fs.readFileSync(unrecognizedWordsPath, 'utf8') + '\n```\n';
           }
 
-          if (fs.existsSync(errorsInEnglishPath)) {
-            const errorsInEnglish = fs.readFileSync(errorsInEnglishPath, 'utf8');
-            if (errorsInEnglish.trim().length > 0) {
-              commentBody += '### Errors in English:\n```\n' + errorsInEnglish + '\n```\n';
-            }
+          if (fs.existsSync(errorsInEnglishPath) && fs.readFileSync(errorsInEnglishPath, 'utf8').trim()) {
+            commentBody += '### Errors in English:\n```\n' + fs.readFileSync(errorsInEnglishPath, 'utf8') + '\n```\n';
           }
 
-          if (commentBody) {
-            commentBody = '## Grammar Check Results\n' + commentBody;
-            await github.rest.issues.createComment({
-              ...context.issue,
-              body: commentBody
-            });
-          } else {
-            console.log('No errors found; no comment will be posted.');
-          }
+          await github.rest.issues.createComment({
+            ...context.issue,
+            body: commentBody
+          });
+
+          // Pass a flag to indicate a comment was created
+          core.setOutput('commented', true);
+
+    - name: Fail if Errors Were Found
+      if: ${{ steps.spell-check.outputs.UNRECOGNIZED_WORDS > 0 || steps.spell-check.outputs.ERRORS_IN_ENGLISH > 0 }}
+      run: |
+        echo "Errors found, pull request will be rejected."
+        exit 1
