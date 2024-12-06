@@ -22,7 +22,6 @@ jobs:
         sudo apt-get install -y aspell aspell-it aspell-en
 
     - name: Spell Check for LaTeX Files
-      id: spellcheck
       run: |
         # Create a temporary file for unrecognized words
         TMP_FILE=$(mktemp)
@@ -43,48 +42,13 @@ jobs:
           sort -u "$TMP_FILE" | tee unrecognized_words.txt
           # Run English spell check
           sort -u "$TMP_FILE" | aspell --lang=en list | tee errors_in_english.txt
+
+          # If there are any errors, fail the job
+          if [ -s errors_in_english.txt ]; then
+            echo "Errors found in English or Italian. Failing job."
+            cat errors_in_english.txt
+            exit 1
+          fi
         else
           echo "No unrecognized words found."
         fi
-
-    - name: Show Debug Output for Errors
-      run: |
-        # Show the contents of the error files to check if they were generated correctly
-        echo "Unrecognized words (Italian errors):"
-        cat unrecognized_words.txt || echo "No errors found in Italian."
-        
-        echo "English errors:"
-        cat errors_in_english.txt || echo "No errors found in English."
-
-    - name: Create Comment on Pull Request
-      if: ${{ github.event_name == 'pull_request' }}
-      run: |
-        # Check if errors exist and create a comment
-        commentBody="## Grammar Check Results\n"
-        errorsFound=false
-
-        if [ -s unrecognized_words.txt ]; then
-          commentBody+="### Errors in Italian/Unrecognized words:\n\`\`\`\n$(cat unrecognized_words.txt)\n\`\`\`\n"
-          errorsFound=true
-        fi
-
-        if [ -s errors_in_english.txt ]; then
-          commentBody+="### Errors in English:\n\`\`\`\n$(cat errors_in_english.txt)\n\`\`\`\n"
-          errorsFound=true
-        fi
-
-        if $errorsFound; then
-          echo "Creating comment on PR..."
-          curl -X POST -H "Authorization: token ${{ secrets.GH_TOKEN }}" \
-            -d "{\"body\":\"$commentBody\"}" \
-            "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
-            || echo "Failed to create comment on PR"
-        else
-          echo "No errors found, no comment created."
-        fi
-
-    - name: Fail Pull Request if Errors Found
-      if: ${{ github.event_name == 'pull_request' && (steps.spellcheck.outputs.errors_in_english != '' || steps.spellcheck.outputs.unrecognized_words != '') }}
-      run: |
-        echo "Found errors in the pull request. Failing job."
-        exit 1
