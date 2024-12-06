@@ -22,6 +22,7 @@ jobs:
         sudo apt-get install -y aspell aspell-it aspell-en
 
     - name: Spell Check for LaTeX Files
+      id: spellcheck
       run: |
         # Create a temporary file for unrecognized words
         TMP_FILE=$(mktemp)
@@ -42,51 +43,36 @@ jobs:
           sort -u "$TMP_FILE" | tee unrecognized_words.txt
           # Run English spell check
           sort -u "$TMP_FILE" | aspell --lang=en list | tee errors_in_english.txt
-
-          # If there are any errors, fail the job
-          if [ -s errors_in_english.txt ]; then
-            echo "Errors found in English or Italian. Failing job."
-            cat errors_in_english.txt
-            exit 1
-          fi
         else
           echo "No unrecognized words found."
         fi
 
     - name: Create Comment on Pull Request
-      if: ${{ github.event_name == 'pull_request' && (env.UNRECOGNIZED_WORDS > 0 || env.ERRORS_IN_ENGLISH > 0) }}
-      uses: actions/github-script@v6
-      with:
-        script: |
-          const fs = require('fs');
-          const unrecognizedWordsPath = 'unrecognized_words.txt';
-          const errorsInEnglishPath = 'errors_in_english.txt';
+      if: ${{ github.event_name == 'pull_request' }}
+      run: |
+        # Check if errors exist and create a comment
+        if [[ -s unrecognized_words.txt || -s errors_in_english.txt ]]; then
+          echo "Errors found, creating a comment on the PR."
 
-          let commentBody = '## Grammar Check Results\n';
+          # Create the comment body with the errors found
+          commentBody="## Grammar Check Results\n"
 
-          if (fs.existsSync(unrecognizedWordsPath) && fs.readFileSync(unrecognizedWordsPath, 'utf8').trim()) {
-            commentBody += '### Errors in Italian/Unrecognized words:\n```\n' + fs.readFileSync(unrecognizedWordsPath, 'utf8') + '\n```\n';
-          }
+          if [ -s unrecognized_words.txt ]; then
+            commentBody+="### Errors in Italian/Unrecognized words:\n\`\`\`\n$(cat unrecognized_words.txt)\n\`\`\`\n"
+          fi
 
-          if (fs.existsSync(errorsInEnglishPath) && fs.readFileSync(errorsInEnglishPath, 'utf8').trim()) {
-            commentBody += '### Errors in English:\n```\n' + fs.readFileSync(errorsInEnglishPath, 'utf8') + '\n```\n';
-          }
+          if [ -s errors_in_english.txt ]; then
+            commentBody+="### Errors in English:\n\`\`\`\n$(cat errors_in_english.txt)\n\`\`\`\n"
+          fi
 
-          const { data } = await github.rest.issues.createComment({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            issue_number: context.payload.pull_request.number,
-            body: commentBody,
-            headers: {
-              'Authorization': `token ${{ secrets.GH_TOKEN }}`
-            }
-          });
-          
-          // Pass a flag to indicate a comment was created
-          core.setOutput('commented', true);
+          # Post the comment using the GitHub API and token
+          curl -X POST -H "Authorization: token ${{ secrets.GH_TOKEN }}" \
+            -d "{\"body\":\"$commentBody\"}" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments"
+        fi
 
     - name: Fail Pull Request if Errors Found
-      if: ${{ github.event_name == 'pull_request' && steps.create-comment.outputs.commented == 'true' }}
+      if: ${{ github.event_name == 'pull_request' && (steps.spellcheck.outputs.unrecognized_words > 0 || steps.spellcheck.outputs.errors_in_english > 0) }}
       run: |
         echo "Found errors in the pull request. Failing job."
         exit 1
