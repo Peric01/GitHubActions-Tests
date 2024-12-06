@@ -22,16 +22,9 @@ jobs:
         sudo apt-get install -y aspell aspell-it aspell-en
 
     - name: Spell Check for LaTeX Files
-      id: spell-check
       run: |
-        # Create temporary files for storing errors
+        # Create a temporary file for unrecognized words
         TMP_FILE=$(mktemp)
-        UNRECOGNIZED_WORDS_FILE="unrecognized_words.txt"
-        ERRORS_IN_ENGLISH_FILE="errors_in_english.txt"
-        
-        # Initialize files
-        > $UNRECOGNIZED_WORDS_FILE
-        > $ERRORS_IN_ENGLISH_FILE
 
         # Process all .tex files in the specified folder
         for file in $(find Texstuff -name "*.tex"); do
@@ -42,26 +35,33 @@ jobs:
           aspell --lang=it list >> $TMP_FILE
         done
 
-        # Save unrecognized words and check against the English dictionary
+        echo "Checking unrecognized words in English..."
+        # Check the unrecognized words against the English dictionary
         if [ -s "$TMP_FILE" ]; then
-          sort -u "$TMP_FILE" > $UNRECOGNIZED_WORDS_FILE
-          sort -u "$TMP_FILE" | aspell --lang=en list > $ERRORS_IN_ENGLISH_FILE
-        fi
+          echo "Unrecognized words found:"
+          sort -u "$TMP_FILE" | tee unrecognized_words.txt
+          # Run English spell check
+          sort -u "$TMP_FILE" | aspell --lang=en list | tee errors_in_english.txt
 
-        # Export results for later steps
-        echo "UNRECOGNIZED_WORDS=$(cat $UNRECOGNIZED_WORDS_FILE | wc -l)" >> $GITHUB_ENV
-        echo "ERRORS_IN_ENGLISH=$(cat $ERRORS_IN_ENGLISH_FILE | wc -l)" >> $GITHUB_ENV
+          # If there are any errors, fail the job
+          if [ -s errors_in_english.txt ]; then
+            echo "Errors found in English or Italian. Failing job."
+            cat errors_in_english.txt
+            exit 1
+          fi
+        else
+          echo "No unrecognized words found."
+        fi
 
     - name: Create Comment on Pull Request
       if: ${{ github.event_name == 'pull_request' && (env.UNRECOGNIZED_WORDS > 0 || env.ERRORS_IN_ENGLISH > 0) }}
       uses: actions/github-script@v6
-      id: create-comment
       with:
         script: |
           const fs = require('fs');
           const unrecognizedWordsPath = 'unrecognized_words.txt';
           const errorsInEnglishPath = 'errors_in_english.txt';
-          
+
           let commentBody = '## Grammar Check Results\n';
 
           if (fs.existsSync(unrecognizedWordsPath) && fs.readFileSync(unrecognizedWordsPath, 'utf8').trim()) {
@@ -72,16 +72,21 @@ jobs:
             commentBody += '### Errors in English:\n```\n' + fs.readFileSync(errorsInEnglishPath, 'utf8') + '\n```\n';
           }
 
-          await github.rest.issues.createComment({
-            ...context.issue,
-            body: commentBody
+          const { data } = await github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.payload.pull_request.number,
+            body: commentBody,
+            headers: {
+              'Authorization': `token ${{ secrets.GH_TOKEN }}`
+            }
           });
-
+          
           // Pass a flag to indicate a comment was created
           core.setOutput('commented', true);
 
-    - name: Fail if Errors Were Found
-      if: ${{ steps.spell-check.outputs.UNRECOGNIZED_WORDS > 0 || steps.spell-check.outputs.ERRORS_IN_ENGLISH > 0 }}
+    - name: Fail Pull Request if Errors Found
+      if: ${{ github.event_name == 'pull_request' && steps.create-comment.outputs.commented == 'true' }}
       run: |
-        echo "Errors found, pull request will be rejected."
+        echo "Found errors in the pull request. Failing job."
         exit 1
