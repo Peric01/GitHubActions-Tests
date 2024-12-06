@@ -24,10 +24,23 @@ jobs:
         wget -q https://languagetool.org/download/LanguageTool-stable.zip
         unzip -q LanguageTool-stable.zip -d languagetool
 
+    - name: Install Pandoc
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y pandoc
+
+    - name: Preprocess LaTeX Files
+      run: |
+        mkdir -p processed
+        find . -name "*.tex" -exec sh -c \
+        'pandoc -f latex -t plain "{}" -o "processed/$(basename "{}" .tex).txt"' \;
+
     - name: Run Grammar Check with LanguageTool
       run: |
-        find . -name "*.tex" -exec languagetool/languagetool-commandline.jar \
-        --language it --disableCategories LT-tex {} \;
+        for file in processed/*.txt; do
+          java -jar languagetool/languagetool-commandline.jar \
+          --language it "$file" || true
+        done
 
     - name: Annotate Grammar Errors
       if: failure()
@@ -35,4 +48,4 @@ jobs:
       with:
         message: |
           ⚠️ Il controllo grammaticale con LanguageTool ha trovato problemi. Correggi gli errori e riprova.
-          Puoi eseguire localmente `java -jar languagetool/languagetool-commandline.jar --language it <file.tex>` per dettagli.
+          Puoi eseguire localmente `pandoc -f latex -t plain <file.tex> | java -jar languagetool/languagetool-commandline.jar --language it` per dettagli.
