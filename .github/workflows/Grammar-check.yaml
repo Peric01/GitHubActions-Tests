@@ -25,7 +25,7 @@ jobs:
 
     - name: Run Grammar Check
       run: |
-        find . -name "*.tex" -exec java -jar textidote.jar --check it --no-pdflatex --no-color --ignore latex {} \;
+        find . -name "*.tex" -exec java -jar textidote.jar --check it --check-only --no-pdflatex --ignore latex {} \;
 
     - name: Annotate Grammar Errors
       if: failure()
