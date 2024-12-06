@@ -38,7 +38,17 @@ jobs:
         echo "Checking unrecognized words in English..."
         # Check the unrecognized words against the English dictionary
         if [ -s "$TMP_FILE" ]; then
-          sort -u "$TMP_FILE" | aspell --lang=en list
+          echo "Unrecognized words found:"
+          sort -u "$TMP_FILE" | tee unrecognized_words.txt
+          # Run English spell check
+          sort -u "$TMP_FILE" | aspell --lang=en list | tee errors_in_english.txt
+
+          # If there are any errors, fail the job
+          if [ -s errors_in_english.txt ]; then
+            echo "Errors found in English or Italian. Failing job."
+            cat errors_in_english.txt
+            exit 1
+          fi
         else
           echo "No unrecognized words found."
         fi
