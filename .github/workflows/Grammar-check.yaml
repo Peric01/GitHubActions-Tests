@@ -36,7 +36,8 @@ jobs:
         done
 
         # Crea file temporaneo per le parole non riconosciute
-        TMP_FILE=$(mktemp)
+        TMP_FILE_IT=$(mktemp)
+        TMP_FILE_EN=$(mktemp)
 
         # Processa tutti i file .tex
         for file in $(find Texstuff -name "*.tex"); do
@@ -50,24 +51,32 @@ jobs:
             s/%.*//g;
             s/[{}]//g;
           ' "$file" | \
-          aspell --lang=it --personal=$PERSONAL_WORDLIST_IT list >> $TMP_FILE
+          aspell --lang=it --personal=$PERSONAL_WORDLIST_IT list >> $TMP_FILE_IT
+
+          # Controlla l'ortografia in inglese per le stesse parole
+          cat "$TMP_FILE_IT" | aspell --lang=en --personal=$PERSONAL_WORDLIST_EN list >> $TMP_FILE_EN
         done
 
         # Controlla le parole non riconosciute in italiano
-        if [ -s "$TMP_FILE" ]; then
+        if [ -s "$TMP_FILE_IT" ]; then
           echo "Unrecognized words in Italian:"
-          sort -u "$TMP_FILE" | tee unrecognized_words_it.txt
+          sort -u "$TMP_FILE_IT" | tee unrecognized_words_it.txt
 
-          # Controlla l'ortografia in inglese per le stesse parole
-          sort -u "$TMP_FILE" | aspell --lang=en --personal=$PERSONAL_WORDLIST_EN list > errors_in_english.txt
-
-          if [ -s errors_in_english.txt ]; then
-            echo "Errors found in English:"
-            cat errors_in_english.txt
+          if [ -s unrecognized_words_it.txt ]; then
             exit 1
-          else
-            echo "No errors in English. Unrecognized Italian words only."
           fi
         else
           echo "No unrecognized words found in Italian."
+        fi
+
+        # Controlla le parole non riconosciute in inglese
+        if [ -s "$TMP_FILE_EN" ]; then
+          echo "Unrecognized words in English:"
+          sort -u "$TMP_FILE_EN" | tee unrecognized_words_en.txt
+
+          if [ -s unrecognized_words_en.txt ]; then
+            exit 1
+          fi
+        else
+          echo "No unrecognized words found in English."
         fi
