@@ -5,3 +5,14 @@ gitflow
 plugin
 repository
 workflow
+FullScreen
+HTMLea
+VSCode
+fp
+hidelinks
+colorlinks
+filecolor
+linkcolor
+pdfpagemode
+urlcolor
+vX
