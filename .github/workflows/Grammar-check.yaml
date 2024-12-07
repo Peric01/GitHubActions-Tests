@@ -42,7 +42,11 @@ jobs:
 
           # Run Textidote with Italian as the language and capture errors
           result=$(textidote check --language=it --latex $file --verbose 2>&1)
-          
+
+          # Print the result to debug
+          echo "Result for $file:"
+          echo "$result"
+
           # If errors are found, print the errors
           if [[ $result == *"ERROR"* ]]; then
             echo "Errors found in $file:"
