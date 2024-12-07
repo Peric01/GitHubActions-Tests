@@ -18,9 +18,15 @@ jobs:
 
     - name: Install Textidote and Dependencies
       run: |
+        # Install dependencies for Textidote
         sudo apt-get update
-        sudo apt-get install -y python3-pip
-        pip3 install textidote
+        sudo apt-get install -y git unzip
+
+        # Download and install Textidote
+        git clone https://github.com/valentindelmas/textidote.git
+        cd textidote
+        ./gradlew installDist
+        sudo cp build/install/textidote/bin/textidote /usr/local/bin/
 
     - name: Grammar and Spell Check for LaTeX Files
       run: |
