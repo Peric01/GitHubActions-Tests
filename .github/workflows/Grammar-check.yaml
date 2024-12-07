@@ -23,27 +23,36 @@ jobs:
 
     - name: Spell Check for LaTeX Files
       run: |
-        # Create a temporary file for unrecognized words
+        # Path al file con le parole personalizzate
+        PERSONAL_WORDLIST="Texstuff/personal_wordlist.txt"
+
+        # Verifica se il file delle parole personalizzate esiste
+        if [ ! -f "$PERSONAL_WORDLIST" ]; then
+          echo "File di parole personalizzate non trovato, creane uno in $PERSONAL_WORDLIST"
+          exit 1
+        fi
+
+        # Crea un file temporaneo per le parole non riconosciute
         TMP_FILE=$(mktemp)
 
-        # Process all .tex files in the specified folder
+        # Processa tutti i file .tex nella cartella specificata
         for file in $(find Texstuff -name "*.tex"); do
           echo "Processing $file..."
 
-          # Remove LaTeX commands before running spell check
+          # Rimuovi i comandi LaTeX prima di controllare l'ortografia
           sed 's/\\[a-zA-Z]*//g' "$file" | \
-          aspell --lang=it list >> $TMP_FILE
+          aspell --lang=it --add-extra-dicts=$PERSONAL_WORDLIST list >> $TMP_FILE
         done
 
         echo "Checking unrecognized words in English..."
-        # Check the unrecognized words against the English dictionary
+        # Controlla le parole non riconosciute rispetto al dizionario inglese
         if [ -s "$TMP_FILE" ]; then
           echo "Unrecognized words found:"
           sort -u "$TMP_FILE" | tee unrecognized_words.txt
-          # Run English spell check
-          sort -u "$TMP_FILE" | aspell --lang=en list | tee errors_in_english.txt
+          # Controlla l'ortografia inglese
+          sort -u "$TMP_FILE" | aspell --lang=en --add-extra-dicts=$PERSONAL_WORDLIST list | tee errors_in_english.txt
 
-          # If there are any errors, fail the job
+          # Se ci sono errori, fallisce il job
           if [ -s errors_in_english.txt ]; then
             echo "Errors found in English or Italian. Failing job."
             cat errors_in_english.txt
