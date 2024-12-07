@@ -16,58 +16,19 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v3
 
-    - name: Install Aspell and Dictionaries
+    - name: Install Textidote and Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y aspell aspell-it aspell-en
+        sudo apt-get install -y python3-pip
+        pip3 install textidote
 
-    - name: Spell Check for LaTeX Files
+    - name: Grammar and Spell Check for LaTeX Files
       run: |
-        # File personalizzati per italiano e inglese
-        PERSONAL_WORDLIST_IT="./Texstuff/personal_wordlist_it.txt"
-        PERSONAL_WORDLIST_EN="./Texstuff/personal_wordlist_en.txt"
-
-        # Verifica che i file di parole personalizzate esistano
-        for wordlist in "$PERSONAL_WORDLIST_IT" "$PERSONAL_WORDLIST_EN"; do
-          if [ ! -f "$wordlist" ]; then
-            echo "File di parole personalizzate non trovato: $wordlist"
-            exit 1
-          fi
-        done
-
-        # Crea file temporaneo per le parole non riconosciute
-        TMP_FILE=$(mktemp)
-
-        # Processa tutti i file .tex
-        for file in $(find Texstuff -name "*.tex"); do
+        # Process all .tex files and run Textidote for Italian
+        for file in $(find . -name "*.tex"); do
           echo "Processing $file..."
 
-          # Rimuovi comandi LaTeX prima di controllare l'ortografia
-          sed -E '
-            s/\\[a-zA-Z@]+(\[[^]]*\])?(\{[^}]*\})?//g;
-            s/\$[^\$]*\$//g;
-            s/\$\$[^\$]*\$\$//g;
-            s/%.*//g;
-            s/[{}]//g;
-          ' "$file" | \
-          aspell --lang=it --personal=$PERSONAL_WORDLIST_IT list >> $TMP_FILE
+          # Run Textidote with Italian as the language
+          textidote check --language=it --latex $file || textidote check --language=en --latex $file
+          
         done
-
-        # Controlla le parole non riconosciute in italiano
-        if [ -s "$TMP_FILE" ]; then
-          # Salva le parole non riconosciute in italiano nel file
-          sort -u "$TMP_FILE" > unrecognized_words_it.txt
-
-          # Controlla l'ortografia in inglese per le stesse parole
-          sort -u "$TMP_FILE" | aspell --lang=en --personal=$PERSONAL_WORDLIST_EN list > errors_in_english.txt
-
-          if [ -s errors_in_english.txt ]; then
-            echo "Errors found:"
-            cat errors_in_english.txt
-            exit 1
-          else
-            echo "No errors in English. Unrecognized Italian words only."
-          fi
-        else
-          echo "No unrecognized words found in Italian."
-        fi
