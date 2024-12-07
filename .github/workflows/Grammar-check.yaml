@@ -3,10 +3,10 @@ name: Grammar Check for LaTeX
 on:
   push:
     paths:
-      - 'Texstuff/**/*.tex'
+      - '**/*.tex' # Controlla tutti i file .tex in qualsiasi cartella
   pull_request:
     paths:
-      - 'Texstuff/**/*.tex'
+      - '**/*.tex' # Controlla tutti i file .tex in qualsiasi cartella
 
 jobs:
   spell-check:
