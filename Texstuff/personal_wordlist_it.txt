@@ -7,9 +7,3 @@ Guirong
 Igbinedion
 Lan
 Osamwonyi
-git
-github
-gitflow
-plugin
-repository
-workflow
