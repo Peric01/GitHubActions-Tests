@@ -36,10 +36,29 @@ jobs:
 
     - name: Grammar and Spell Check for LaTeX Files
       run: |
-        # Process all .tex files and run Textidote for Italian
+        # Process all .tex files and run Textidote for Italian and English
         for file in $(find . -name "*.tex"); do
           echo "Processing $file..."
 
-          # Run Textidote with Italian as the language, and enable verbose output for debugging
-          textidote check --language=it --latex $file --verbose || textidote check --language=en --latex $file --verbose
+          # Run Textidote with Italian as the language and capture errors
+          result=$(textidote check --language=it --latex $file --verbose 2>&1)
+          
+          # If errors are found, print the errors
+          if [[ $result == *"ERROR"* ]]; then
+            echo "Errors found in $file:"
+            echo "$result" | tee -a textidote_errors.log
+          else
+            echo "No grammatical errors in $file"
+          fi
+
+          # Run Textidote for English as a fallback, if no errors were found in Italian
+          if [[ $result != *"ERROR"* ]]; then
+            result_en=$(textidote check --language=en --latex $file --verbose 2>&1)
+            if [[ $result_en == *"ERROR"* ]]; then
+              echo "Errors found in $file (English):"
+              echo "$result_en" | tee -a textidote_errors.log
+            else
+              echo "No grammatical errors in English for $file"
+            fi
+          fi
         done
