@@ -29,13 +29,17 @@ jobs:
         sudo dpkg -i textidote_0.8.3_all.deb
         sudo apt-get install -f  # Install missing dependencies (if any)
 
+    - name: Check if Textidote is installed
+      run: |
+        # Check Textidote version to confirm installation
+        textidote --version
+
     - name: Grammar and Spell Check for LaTeX Files
       run: |
         # Process all .tex files and run Textidote for Italian
         for file in $(find . -name "*.tex"); do
           echo "Processing $file..."
 
-          # Run Textidote with Italian as the language
-          textidote check --language=it --latex $file || textidote check --language=en --latex $file
-          
+          # Run Textidote with Italian as the language, and enable verbose output for debugging
+          textidote check --language=it --latex $file --verbose || textidote check --language=en --latex $file --verbose
         done
