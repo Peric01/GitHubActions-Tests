@@ -16,18 +16,23 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v3
 
-    - name: Install Textidote and Dependencies
+    - name: Install Dependencies for Textidote
       run: |
-        # Install dependencies for Textidote
+        # Install required packages for building Textidote
         sudo apt-get update
-        sudo apt-get install -y wget unzip
+        sudo apt-get install -y git openjdk-11-jdk gradle
 
-        # Download Textidote precompiled version
-        wget https://github.com/valentindelmas/textidote/releases/download/v2.0.0/textidote-2.0.0-linux-x86_64.tar.gz
+    - name: Clone and Build Textidote
+      run: |
+        # Clone the Textidote repository
+        git clone https://github.com/valentindelmas/textidote.git
+        cd textidote
 
-        # Extract the tarball and install
-        tar -xvzf textidote-2.0.0-linux-x86_64.tar.gz
-        sudo cp textidote-2.0.0-linux-x86_64/textidote /usr/local/bin/
+        # Build Textidote using Gradle
+        ./gradlew installDist
+
+        # Copy the binary to /usr/local/bin to make it available globally
+        sudo cp build/install/textidote/bin/textidote /usr/local/bin/
 
     - name: Grammar and Spell Check for LaTeX Files
       run: |
