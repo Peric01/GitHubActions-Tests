@@ -47,6 +47,14 @@ jobs:
           echo "Result for $file:"
           echo "$result"
 
+          # Check the exit status
+          if [[ $? -ne 0 ]]; then
+            echo "Textidote failed for $file with error code $?"
+            echo "Full output:"
+            echo "$result" | tee -a textidote_errors.log
+            exit 1
+          fi
+
           # If errors are found, print the errors
           if [[ $result == *"ERROR"* ]]; then
             echo "Errors found in $file:"
