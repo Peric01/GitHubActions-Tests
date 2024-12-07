@@ -40,7 +40,13 @@ jobs:
           echo "Processing $file..."
 
           # Rimuovi i comandi LaTeX prima di controllare l'ortografia
-          sed 's/\\[a-zA-Z]*//g' "$file" | \
+          sed -E '
+            s/\\[a-zA-Z]+(\[[^]]*\])?(\{[^}]*\})?//g;    # Rimuove i comandi LaTeX con eventuali opzioni
+            s/\\[a-zA-Z]+//g;                            # Rimuove i comandi rimanenti
+            s/\$[^\$]*\$//g;                             # Rimuove espressioni matematiche inline
+            s/\$\$[^\$]*\$\$//g;                         # Rimuove blocchi matematici
+            s/%.*//g;                                    # Rimuove i commenti
+          ' "$file" | \
           aspell --lang=it --personal=$PERSONAL_WORDLIST list >> $TMP_FILE
         done
 
