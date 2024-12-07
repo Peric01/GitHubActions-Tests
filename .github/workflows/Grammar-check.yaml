@@ -3,10 +3,10 @@ name: Grammar Check for LaTeX
 on:
   push:
     paths:
-      - '**/*.tex' # Controlla tutti i file .tex in qualsiasi cartella
+      - '**/*.tex'
   pull_request:
     paths:
-      - '**/*.tex' # Controlla tutti i file .tex in qualsiasi cartella
+      - '**/*.tex'
 
 jobs:
   spell-check:
@@ -41,11 +41,11 @@ jobs:
 
           # Rimuovi i comandi LaTeX prima di controllare l'ortografia
           sed -E '
-            s/\\[a-zA-Z]+(\[[^]]*\])?(\{[^}]*\})?//g;    # Rimuove i comandi LaTeX con eventuali opzioni
-            s/\\[a-zA-Z]+//g;                            # Rimuove i comandi rimanenti
-            s/\$[^\$]*\$//g;                             # Rimuove espressioni matematiche inline
-            s/\$\$[^\$]*\$\$//g;                         # Rimuove blocchi matematici
-            s/%.*//g;                                    # Rimuove i commenti
+            s/\\[a-zA-Z@]+(\[[^]]*\])?(\{[^}]*\})?//g; # Rimuove comandi LaTeX con o senza opzioni/argomenti
+            s/\$[^\$]*\$//g;                           # Rimuove espressioni matematiche inline
+            s/\$\$[^\$]*\$\$//g;                       # Rimuove blocchi matematici
+            s/%.*//g;                                  # Rimuove i commenti LaTeX
+            s/[{}]//g;                                 # Rimuove parentesi graffe isolate
           ' "$file" | \
           aspell --lang=it --personal=$PERSONAL_WORDLIST list >> $TMP_FILE
         done
