@@ -55,8 +55,8 @@ jobs:
 
         # Controlla le parole non riconosciute in italiano
         if [ -s "$TMP_FILE" ]; then
-          echo "Unrecognized words in Italian:"
-          sort -u "$TMP_FILE" | tee unrecognized_words_it.txt
+          # Salva le parole non riconosciute in italiano nel file
+          sort -u "$TMP_FILE" > unrecognized_words_it.txt
 
           # Controlla l'ortografia in inglese per le stesse parole
           sort -u "$TMP_FILE" | aspell --lang=en --personal=$PERSONAL_WORDLIST_EN list > errors_in_english.txt
