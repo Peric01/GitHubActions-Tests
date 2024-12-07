@@ -41,28 +41,29 @@ jobs:
 
           # Rimuovi i comandi LaTeX prima di controllare l'ortografia
           sed -E '
-            s/\\[a-zA-Z@]+(\[[^]]*\])?(\{[^}]*\})?//g; # Rimuove comandi LaTeX con o senza opzioni/argomenti
-            s/\$[^\$]*\$//g;                           # Rimuove espressioni matematiche inline
-            s/\$\$[^\$]*\$\$//g;                       # Rimuove blocchi matematici
-            s/%.*//g;                                  # Rimuove i commenti LaTeX
-            s/[{}]//g;                                 # Rimuove parentesi graffe isolate
+            s/\\[a-zA-Z@]+(\[[^]]*\])?(\{[^}]*\})?//g;
+            s/\$[^\$]*\$//g;
+            s/\$\$[^\$]*\$\$//g;
+            s/%.*//g;
+            s/[{}]//g;
           ' "$file" | \
           aspell --lang=it --personal=$PERSONAL_WORDLIST list >> $TMP_FILE
         done
 
-        echo "Checking unrecognized words in English..."
         # Controlla le parole non riconosciute rispetto al dizionario inglese
         if [ -s "$TMP_FILE" ]; then
-          echo "Unrecognized words found:"
+          echo "Unrecognized words found in Italian:"
           sort -u "$TMP_FILE" | tee unrecognized_words.txt
-          # Controlla l'ortografia inglese
-          sort -u "$TMP_FILE" | aspell --lang=en --personal=$PERSONAL_WORDLIST list | tee errors_in_english.txt
 
-          # Se ci sono errori, fallisce il job
+          # Controlla l'ortografia inglese
+          sort -u "$TMP_FILE" | aspell --lang=en --personal=$PERSONAL_WORDLIST list > errors_in_english.txt
+
           if [ -s errors_in_english.txt ]; then
-            echo "Errors found in English or Italian. Failing job."
+            echo "Errors found in English:"
             cat errors_in_english.txt
             exit 1
+          else
+            echo "No errors in English, but unrecognized words in Italian may exist."
           fi
         else
           echo "No unrecognized words found."
