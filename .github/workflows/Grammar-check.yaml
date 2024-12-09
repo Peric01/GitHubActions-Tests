@@ -16,61 +16,58 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v3
 
-    - name: Install Textidote and Dependencies
+    - name: Install Aspell and Dictionaries
       run: |
-        # Install dependencies for Textidote
         sudo apt-get update
-        sudo apt-get install -y wget unzip
+        sudo apt-get install -y aspell aspell-it aspell-en
 
-        # Download Textidote .deb package
-        wget https://github.com/sylvainhalle/textidote/releases/download/v0.8.3/textidote_0.8.3_all.deb
-
-        # Install Textidote using the .deb package
-        sudo dpkg -i textidote_0.8.3_all.deb
-        sudo apt-get install -f  # Install missing dependencies (if any)
-
-    - name: Check if Textidote is installed
+    - name: Spell Check for LaTeX Files
       run: |
-        # Check Textidote version to confirm installation
-        textidote --version
+        # File personalizzati per italiano e inglese
+        PERSONAL_WORDLIST_IT="./Texstuff/personal_wordlist_it.txt"
+        PERSONAL_WORDLIST_EN="./Texstuff/personal_wordlist_en.txt"
 
-    - name: Grammar and Spell Check for LaTeX Files
-      run: |
-        # Process all .tex files and run Textidote for Italian and English
-        for file in $(find . -name "*.tex"); do
-          echo "Processing $file..."
-
-          # Run Textidote with Italian as the language and capture errors
-          result=$(textidote check --language=it --latex $file --verbose 2>&1)
-
-          # Print the result to debug
-          echo "Result for $file:"
-          echo "$result"
-
-          # Check the exit status
-          if [[ $? -ne 0 ]]; then
-            echo "Textidote failed for $file with error code $?"
-            echo "Full output:"
-            echo "$result" | tee -a textidote_errors.log
+        # Verifica che i file di parole personalizzate esistano
+        for wordlist in "$PERSONAL_WORDLIST_IT" "$PERSONAL_WORDLIST_EN"; do
+          if [ ! -f "$wordlist" ]; then
+            echo "File di parole personalizzate non trovato: $wordlist"
             exit 1
           fi
-
-          # If errors are found, print the errors
-          if [[ $result == *"ERROR"* ]]; then
-            echo "Errors found in $file:"
-            echo "$result" | tee -a textidote_errors.log
-          else
-            echo "No grammatical errors in $file"
-          fi
-
-          # Run Textidote for English as a fallback, if no errors were found in Italian
-          if [[ $result != *"ERROR"* ]]; then
-            result_en=$(textidote check --language=en --latex $file --verbose 2>&1)
-            if [[ $result_en == *"ERROR"* ]]; then
-              echo "Errors found in $file (English):"
-              echo "$result_en" | tee -a textidote_errors.log
-            else
-              echo "No grammatical errors in English for $file"
-            fi
-          fi
         done
+
+        # Crea file temporaneo per le parole non riconosciute
+        TMP_FILE=$(mktemp)
+
+        # Processa tutti i file .tex
+        for file in $(find Texstuff -name "*.tex"); do
+          echo "Processing $file..."
+
+          # Rimuovi comandi LaTeX prima di controllare l'ortografia
+          sed -E '
+            s/\\[a-zA-Z@]+(\[[^]]*\])?(\{[^}]*\})?//g;
+            s/\$[^\$]*\$//g;
+            s/\$\$[^\$]*\$\$//g;
+            s/%.*//g;
+            s/[{}]//g;
+          ' "$file" | \
+          aspell --lang=it --personal=$PERSONAL_WORDLIST_IT list >> $TMP_FILE
+        done
+
+        # Controlla le parole non riconosciute in italiano
+        if [ -s "$TMP_FILE" ]; then
+          # Salva le parole non riconosciute in italiano nel file
+          sort -u "$TMP_FILE" > unrecognized_words_it.txt
+
+          # Controlla l'ortografia in inglese per le stesse parole
+          sort -u "$TMP_FILE" | aspell --lang=en --personal=$PERSONAL_WORDLIST_EN list > errors_in_english.txt
+
+          if [ -s errors_in_english.txt ]; then
+            echo "Errors found:"
+            cat errors_in_english.txt
+            exit 1
+          else
+            echo "No errors in English. Unrecognized Italian words only."
+          fi
+        else
+          echo "No unrecognized words found in Italian."
+        fi
