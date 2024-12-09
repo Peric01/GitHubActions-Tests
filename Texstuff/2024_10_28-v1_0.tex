@@ -13,7 +13,7 @@
 
 
 %--------------------VARIABILI--------------------
-\def\logo{../../Immagini/logo.jpeg}
+%\def\logo{../../Immagini/logo.jpeg}
 \def\ultima-versione{v1.0}
 \def\titolo{Verbale interno}
 %------------------------------------------------
@@ -66,7 +66,7 @@
         -- (current page.south east);
 
         \clip ($(current page.center) + (0, -8)$) circle (1cm) node 
-        {\includegraphics[width=.25\textwidth]{\logo}};
+        %{\includegraphics[width=.25\textwidth]{\logo}};
         
     \end{tikzpicture}    
 \end{titlepage}
@@ -147,7 +147,7 @@
 \newpage
 
 \section{Verbale}
-Durante questo incontro si è discusso su possibili miglioramenti del way of woorking che possano migliorare l’efficienza e l’efficacia del team.
+Durante questo incontro si è discusso su possibili miglioramenti del way of working che possano migliorare l’efficienza e l’efficacia del team.
 
 È stato deciso di aggiungere due nuovi template, uno per i verbali interni e uno per i verbali esterni, in modo tale da determinare una struttura fissa che tutti i membri del gruppo dovranno seguire per la stesura dei documenti.
 Si è deciso di avere strutture più semplici con solamente due sezioni aggiuntive oltre al registro delle presenze in modo che lo schema del documento sia indipendente dagli argomenti trattati durante la riunione. 
@@ -162,7 +162,7 @@ I verbali esterni avranno le sezioni:
     \item ”Conclusioni” che comprenderà tutto ciò che il gruppo è riuscito a chiarire grazie alle risposte dei membri dell’azienda e/o tutte le attività che, in seguito a ciò che si è appreso durante la riunione, dovranno essere svolte.
 \end{itemize}
 
-Si è notato come assegnare la pull request per la revisione di documento a tutti i membri del gruppo fosse confusionario e poco efficiente, è stata quindi modificata  la gestione delle revisioni e accettazioni di documenti.
+Si è notato come asssegnare la pull request per la revisione di documento a tutti i membri del gruppo fosse confusionario e poco efficiente, è stata quindi modificata  la gestione delle revisioni e accettazioni di documenti.
 In particolare si è stabilito il seguente workflow: un membro del gruppo effettuerà la prima stesura facendo poi il push sul repository remoto, successivamente aprirà una pull request che verrà assegnata ad uno solo membro incaricato della revisione, il secondo membro scaricherà in locale il documento, effettuerà la revisione ed assegnerà la pull request ad un terzo membro che sarà incaricato dell’accettazione.
 Se il file è stato revisionato correttamente e non deve essere modificato la pull request verrà accettata altrimenti sarà rifiutata.
 Il rifiuto deve essere corredato con un messaggio nella pull request in cui si indicano le modifiche da apportare al contenuto del documento affinché esso venga approvato.
