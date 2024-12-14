@@ -44,10 +44,10 @@ jobs:
           echo "Processing $file..."
 
           # Controllo ortografico in italiano
-          aspell --mode=tex --lang=it --personal=$PERSONAL_WORDLIST_IT list < "$file" >> "$TMP_FILE_IT"
+          aspell --mode=tex --lang=it --add-filter=tex --personal=$PERSONAL_WORDLIST_IT list < "$file" >> "$TMP_FILE_IT"
 
           # Controllo ortografico in inglese
-          aspell --mode=tex --lang=en --personal=$PERSONAL_WORDLIST_EN list < "$file" >> "$TMP_FILE_EN"
+          aspell --mode=tex --lang=en --add-filter=tex --personal=$PERSONAL_WORDLIST_EN list < "$file" >> "$TMP_FILE_EN"
         done
 
         # Controlla le parole non riconosciute in italiano
