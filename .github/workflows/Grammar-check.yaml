@@ -35,36 +35,33 @@ jobs:
           fi
         done
 
-        # Crea file temporaneo per le parole non riconosciute
+        # Crea file temporanei per le parole non riconosciute
         TMP_FILE_IT=$(mktemp)
         TMP_FILE_EN=$(mktemp)
+        FINAL_TMP_FILE=$(mktemp)
 
         # Processa tutti i file .tex
         for file in $(find . -name "*.tex"); do
           echo "Processing $file..."
 
           # Controllo ortografico in italiano
-          aspell --mode=tex --lang=it --add-filter=tex --personal=$PERSONAL_WORDLIST_IT list < "$file" >> "$TMP_FILE_IT"
-
-          # Controllo ortografico in inglese
-          aspell --mode=tex --lang=en --add-filter=tex --personal=$PERSONAL_WORDLIST_EN list < "$file" >> "$TMP_FILE_EN"
+          aspell --mode=tex --lang=it --personal=$PERSONAL_WORDLIST_IT list < "$file" >> "$TMP_FILE_IT"
         done
 
-        # Controlla le parole non riconosciute in italiano
+        # Controlla se le parole italiane sono riconosciute in inglese
         if [ -s "$TMP_FILE_IT" ]; then
-          echo "Parole non riconosciute in italiano trovate:"
-          sort -u "$TMP_FILE_IT" > unrecognized_words_it.txt
-          cat unrecognized_words_it.txt
-        else
-          echo "Nessuna parola non riconosciuta trovata in italiano."
+          echo "Parole non riconosciute in italiano trovate. Verifico in inglese..."
+          while IFS= read -r word; do
+            echo "$word" | aspell --lang=en --personal=$PERSONAL_WORDLIST_EN list >> "$TMP_FILE_EN"
+          done < <(sort -u "$TMP_FILE_IT")
         fi
 
-        # Controlla le parole non riconosciute in inglese
+        # Combina le parole non riconosciute finali
         if [ -s "$TMP_FILE_EN" ]; then
-          echo "Parole non riconosciute in inglese trovate:"
-          sort -u "$TMP_FILE_EN" > unrecognized_words_en.txt
-          cat unrecognized_words_en.txt
+          echo "Parole non riconosciute in nessuna lingua trovate:"
+          sort -u "$TMP_FILE_EN" > "$FINAL_TMP_FILE"
+          cat "$FINAL_TMP_FILE"
           exit 1
         else
-          echo "Nessuna parola non riconosciuta trovata in inglese."
+          echo "Nessuna parola non riconosciuta trovata in entrambe le lingue."
         fi
