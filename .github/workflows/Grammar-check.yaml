@@ -36,38 +36,45 @@ jobs:
         done
 
         # Crea file temporaneo per le parole non riconosciute
-        TMP_FILE=$(mktemp)
+        TMP_FILE_IT=$(mktemp)
+        TMP_FILE_EN=$(mktemp)
 
         # Processa tutti i file .tex
         for file in $(find . -name "*.tex"); do
           echo "Processing $file..."
 
-          # Rimuovi comandi LaTeX prima di controllare l'ortografia
+          # Rimuovi solo i comandi LaTeX, mantenendo il testo
+          sed -E '
+            s/\\[a-zA-Z@]+(\[[^]]*\])?(\{[^}]*\})?//g; # Rimuove i comandi LaTeX
+            s/\$[^\$]*\$//g;                           # Rimuove inline math
+            s/\$\$[^\$]*\$\$//g;                       # Rimuove display math
+            s/%.*//g;                                  # Rimuove commenti
+            s/[{}]//g;                                 # Rimuove parentesi
+          ' "$file" | tee "processed_$file" | \
+          aspell --lang=it --personal=$PERSONAL_WORDLIST_IT list >> $TMP_FILE_IT
+          
+          # Ripeti per il controllo inglese
           sed -E '
             s/\\[a-zA-Z@]+(\[[^]]*\])?(\{[^}]*\})?//g;
             s/\$[^\$]*\$//g;
             s/\$\$[^\$]*\$\$//g;
             s/%.*//g;
             s/[{}]//g;
-          ' "$file" | \
-          aspell --lang=it --personal=$PERSONAL_WORDLIST_IT list >> $TMP_FILE
+          ' "$file" | aspell --lang=en --personal=$PERSONAL_WORDLIST_EN list >> $TMP_FILE_EN
         done
 
-        # Controlla le parole non riconosciute in italiano
-        if [ -s "$TMP_FILE" ]; then
-          # Salva le parole non riconosciute in italiano nel file
-          sort -u "$TMP_FILE" > unrecognized_words_it.txt
+        # Riporta gli errori
+        if [ -s "$TMP_FILE_IT" ]; then
+          echo "Parole non riconosciute in italiano:"
+          cat "$TMP_FILE_IT"
+        fi
 
-          # Controlla l'ortografia in inglese per le stesse parole
-          sort -u "$TMP_FILE" | aspell --lang=en --personal=$PERSONAL_WORDLIST_EN list > errors_in_english.txt
+        if [ -s "$TMP_FILE_EN" ]; then
+          echo "Parole non riconosciute in inglese:"
+          cat "$TMP_FILE_EN"
+        fi
 
-          if [ -s errors_in_english.txt ]; then
-            echo "Errors found:"
-            cat errors_in_english.txt
-            exit 1
-          else
-            echo "No errors in English. Unrecognized Italian words only."
-          fi
-        else
-          echo "No unrecognized words found in Italian."
+        # Se ci sono errori in uno dei due, fallisce
+        if [ -s "$TMP_FILE_IT" ] || [ -s "$TMP_FILE_EN" ]; then
+          exit 1
         fi
