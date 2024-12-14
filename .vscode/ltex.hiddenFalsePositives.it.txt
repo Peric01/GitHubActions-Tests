@@ -1,1 +1,0 @@
-{"rule":"MORFOLOGIK_RULE_IT_IT","sentence":"^\\QIntroduction.\\E$"}
